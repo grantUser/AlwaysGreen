@@ -12,7 +12,7 @@ Follow these steps to use the AlwaysGreen application:
 
 1. Clone this repository to your local machine.
 2. Install the required dependencies by running: `pip install -r requirements.txt`
-3. Set up your environment variables for email and password:
+3. Set the configuration variables for email and password in the .env file:
     - `ALWAYSGREEN_EMAIL`: Your Microsoft Teams email
     - `ALWAYSGREEN_PASSWORD`: Your Microsoft Teams password
 4. Run the application by executing: `python main.py`
