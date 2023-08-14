@@ -1,4 +1,3 @@
-import json
 import time
 
 import requests
@@ -7,6 +6,13 @@ from msal import PublicClientApplication
 
 class Teams:
     def __init__(self, email: str, password: str) -> None:
+        """
+        Initialize a Teams object.
+
+        :param email: User's email.
+        :param password: User's password.
+        """
+
         self.email = email
         self.password = password
         self.session = requests.Session()
@@ -19,7 +25,13 @@ class Teams:
         self.access_token_expiry = None
 
     @property
-    def account_type(self):
+    def account_type(self) -> int | bool:
+        """
+        Get the account type of the user.
+
+        :return: Account type (1 for MSAccount, 2 for OrgId), or False if unknown.
+        """
+
         if self.account_type_cache:
             return self.account_type_cache
 
@@ -40,7 +52,13 @@ class Teams:
         return False
 
     @property
-    def tenant_id(self):
+    def tenant_id(self) -> str | bool:
+        """
+        Get the tenant ID associated with the user's email domain.
+
+        :return: Tenant ID or False if not found.
+        """
+
         if "@" in self.email:
             domain = self.email.split("@")[-1]
             well_known_response = self.session.get(
@@ -54,7 +72,13 @@ class Teams:
         return False
 
     @property
-    def authentication_metadata(self):
+    def authentication_metadata(self) -> dict:
+        """
+        Get authentication metadata based on the user's account type.
+
+        :return: Authentication metadata dictionary.
+        """
+
         match self.account_type:
             case 1:
                 return {
@@ -72,7 +96,14 @@ class Teams:
                 return {}
 
     @property
-    def client(self):
+    def client(self) -> bool | tuple:
+        """
+        Get the PublicClientApplication instance for authentication.
+
+        :return: Tuple containing authentication metadata and PublicClientApplication instance,
+                 or False if client cannot be initialized.
+        """
+
         if self.client_cache:
             return self.client_cache
 
@@ -87,10 +118,22 @@ class Teams:
         return False
 
     @property
-    def is_token_expired(self):
+    def is_token_expired(self) -> bool:
+        """
+        Check if the access token has expired.
+
+        :return: True if the token has expired, False otherwise.
+        """
+
         return int(time.time()) < self.access_token_expiry
 
-    def refresh_access_token(self):
+    def refresh_access_token(self) -> bool:
+        """
+        Refresh the access token using the refresh token.
+
+        :return: True if the token was successfully refreshed, False otherwise.
+        """
+
         auth_metadata, client = self.client
         if client and self.refresh_token:
             if account := client.acquire_token_by_refresh_token(
@@ -101,13 +144,25 @@ class Teams:
 
         return False
 
-    def set_account_data(self, account):
+    def set_account_data(self, account: dict) -> None:
+        """
+        Set account data after successful authentication.
+
+        :param account: Account data dictionary.
+        """
+
         self.need_login = False
         self.access_token = account.get("access_token", False)
         self.refresh_token = account.get("refresh_token", False)
         self.access_token_expiry = int(time.time()) + account.get("expires_in", 0)
 
-    def logon_with_credentials(self):
+    def logon_with_credentials(self) -> str | bool:
+        """
+        Authenticate the user using username and password.
+
+        :return: Access token if authentication is successful, False otherwise.
+        """
+
         auth_metadata, client = self.client
         if client:
             if account := client.acquire_token_by_username_password(
@@ -118,7 +173,13 @@ class Teams:
 
         return False
 
-    def logon_with_devicecode(self):
+    def logon_with_devicecode(self) -> str | bool:
+        """
+        Authenticate the user using device code flow.
+
+        :return: Access token if authentication is successful, False otherwise.
+        """
+
         auth_metadata, client = self.client
         if client:
             if flow := client.initiate_device_flow(scopes=[auth_metadata.get("scope")]):
@@ -131,7 +192,15 @@ class Teams:
 
         return False
 
-    def set_activity(self, activity, availability):
+    def set_activity(self, activity: str, availability: str) -> bool:
+        """
+        Set user's activity and availability.
+
+        :param activity: User's activity.
+        :param availability: User's availability.
+        :return: True if activity is successfully set, False otherwise.
+        """
+
         headers = {
             "authorization": f"Bearer {self.get_access_token()}",
         }
@@ -139,28 +208,20 @@ class Teams:
         if self.account_type == 1:
             headers["x-ms-client-consumer-type"] = "teams4life"
             headers["x-skypetoken"] = self.x_skypetoken
-
-            activity_request = self.session.put(
-                "https://presence.teams.live.com/v1/me/forceavailability",
-                headers=headers,
-                json={
-                    "activity": activity,
-                    "availability": availability,
-                    "deviceType": "Mobile",
-                },
-            )
+            domaine = "presence.teams.live.com"
 
         if self.account_type == 2:
+            domaine = "presence.teams.microsoft.com"
 
-            activity_request = self.session.put(
-                "https://presence.teams.microsoft.com/v1/me/forceavailability",
-                headers=headers,
-                json={
-                    "activity": activity,
-                    "availability": availability,
-                    "deviceType": "Mobile",
-                },
-            )
+        activity_request = self.session.put(
+            f"https://{domaine}/v1/me/forceavailability",
+            headers=headers,
+            json={
+                "activity": activity,
+                "availability": availability,
+                "deviceType": "Mobile",
+            },
+        )
 
         if activity_request.ok:
             return True
@@ -168,7 +229,13 @@ class Teams:
         return False
 
     @property
-    def silent_token(self):
+    def silent_token(self) -> str | bool:
+        """
+        Get the silent token for authentication.
+
+        :return: Silent token or False if silent token cannot be acquired.
+        """
+
         if self.silent_token_cache:
             return self.silent_token_cache
 
@@ -185,7 +252,13 @@ class Teams:
         return self.silent_token_cache
 
     @property
-    def x_skypetoken(self):
+    def x_skypetoken(self) -> str | None:
+        """
+        Get the x-skypetoken for authentication.
+
+        :return: x-skypetoken or None if it cannot be obtained.
+        """
+
         api_url = "https://authsvc.teams.microsoft.com/v1.0/authz"
         token = self.get_access_token()
         if self.account_type == 1:
@@ -216,7 +289,13 @@ class Teams:
 
         return None
 
-    def get_access_token(self):
+    def get_access_token(self) -> str:
+        """
+        Get the access token for making API requests.
+
+        :return: Access token.
+        """
+
         if self.need_login:
             if self.account_type == 1:
                 self.logon_with_devicecode()
